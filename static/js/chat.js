@@ -1,4 +1,4 @@
-import { addBookmark, removeBookmark, renderBookmarks } from './bookmarks.js';
+import { addBookmark, removeBookmark, renderBookmarks, isBookmarked } from './bookmarks.js';
 import { generateId, saveHistory, getChatHistory, clearHistory, renderHistoryList } from './history.js';
 import { createBotBubble, addUserMessage } from './ui.js';
 
@@ -312,23 +312,28 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </div>
                                     </div>
                                     <ul class="ref-list">
-                                        ${data.links.map(link => `
-                                            <li>
-                                                <div class="ref-link-wrap">
-                                                    <img class="ref-favicon" src="https://www.google.com/s2/favicons?sz=32&domain=geeksforgeeks.org" alt="GfG">
-                                                    <a href="${link.link}" target="_blank" rel="noopener">${link.title}</a>
-                                                </div>
-                                                <div class="ref-actions">
-                                                    <button class="bookmark-btn" onclick="window.addBookmark('${link.title.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${link.link}')" title="Save bookmark">
-                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                                                        Save
-                                                    </button>
-                                                    <a class="ref-open-btn" href="${link.link}" target="_blank" rel="noopener" title="Open article">
-                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                                    </a>
-                                                </div>
-                                            </li>
-                                        `).join('')}
+                                        ${data.links.map(link => {
+                                            const saved = isBookmarked(link.link);
+                                            return `
+                                             <li>
+                                                 <div class="ref-link-wrap">
+                                                     <img class="ref-favicon" src="https://www.google.com/s2/favicons?sz=32&domain=geeksforgeeks.org" alt="GfG">
+                                                     <a href="${link.link}" target="_blank" rel="noopener">${link.title}</a>
+                                                 </div>
+                                                 <div class="ref-actions">
+                                                     <button class="bookmark-btn ${saved ? 'saved' : ''}" 
+                                                             ${saved ? 'disabled' : ''}
+                                                             onclick="window.addBookmark('${link.title.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${link.link}')" 
+                                                             title="${saved ? 'Already saved' : 'Save bookmark'}">
+                                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="${saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                                                         ${saved ? 'Saved' : 'Save'}
+                                                     </button>
+                                                     <a class="ref-open-btn" href="${link.link}" target="_blank" rel="noopener" title="Open article">
+                                                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                                     </a>
+                                                 </div>
+                                             </li>
+                                         `;}).join('')}
                                     </ul>
                                 `;
                                 botEl.querySelector('.bubble').appendChild(refBox);
@@ -364,5 +369,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    /* ── Bookmark Feedback ── */
+    window.addEventListener('bookmark-added', (e) => {
+        const link = e.detail.link;
+        document.querySelectorAll(`.bookmark-btn[onclick*="${link}"]`).forEach(btn => {
+            btn.classList.add('saved');
+            btn.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                Saved
+            `;
+            btn.disabled = true;
+        });
+    });
+
+    window.addEventListener('bookmark-removed', (e) => {
+        const link = e.detail.link;
+        document.querySelectorAll(`.bookmark-btn[onclick*="${link}"]`).forEach(btn => {
+            btn.classList.remove('saved');
+            btn.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                Save
+            `;
+            btn.disabled = false;
+        });
+    });
 });
 
