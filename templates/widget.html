@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yogi Bot Widget</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { background: transparent; height: 100vh; overflow: hidden; }
+        .widget-shell { display: flex; flex-direction: column; height: 100%; background: var(--bg-surface); }
+        .chat-topbar { padding: 0 16px; height: 50px; background: var(--gfg-green); color: white; justify-content: flex-start; }
+        .topbar-status { color: rgba(255,255,255,0.9); }
+        .status-dot { background: white; box-shadow: 0 0 8px white; }
+        .chat-input-area { padding: 12px; }
+        .welcome-card { margin-top: 10px; padding: 20px; }
+        .welcome-orb-mini { font-size: 2rem; }
+    </style>
+</head>
+<body>
+    <div class="widget-shell chat-main">
+        <header class="chat-topbar">
+            <div class="topbar-left">
+                <span style="font-family:'Outfit';font-weight:600;font-size:1.1rem;margin-right:8px;">Yogi Bot</span>
+                <div class="topbar-status">
+                    <span class="status-dot"></span>
+                </div>
+            </div>
+        </header>
+
+        <section id="chat-messages" class="chat-messages" style="background:var(--bg);">
+            <div class="welcome-card">
+                <div class="welcome-orb-mini">🧘‍♂️</div>
+                <h2 style="font-size:1.2rem;">Hello!</h2>
+                <p style="font-size:0.85rem;">I'm Yogi Bot. Ask me anything about DSA, coding, or system design.</p>
+            </div>
+        </section>
+
+        <footer class="chat-input-area" style="background:var(--bg-surface);">
+            <form id="chat-form" autocomplete="off">
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off">
+                    <button type="submit" id="send-btn">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </footer>
+    </div>
+    
+    <!-- We will use a slightly modified initialization for the widget -->
+    <script>
+        // Override chat.js behaviors specific to widget
+        window.isWidget = true;
+    </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>

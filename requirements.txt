@@ -1,0 +1,6 @@
+flask
+sarvamai
+gfg_search
+requests
+python-dotenv
+gunicorn

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yogi Bot | GeeksforGeeks AI Assistant</title>
+    <meta name="description" content="Unofficial Yogi Bot – A wise, technical AI assistant powered by Sarvam AI and GeeksforGeeks.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="ambient-orb orb-1"></div>
+        <div class="ambient-orb orb-2"></div>
+        <div class="ambient-orb orb-3"></div>
+    </div>
+
+    <div class="app-shell">
+        <!-- Overlay for closing mobile sidebar -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- ══════════════════════════
+             SIDEBAR  (desktop only)
+             ══════════════════════════ -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <span class="brand-gfg">GfG</span>
+                    <span class="brand-dot">·</span>
+                    <span class="brand-yogi">Yogi</span>
+                </div>
+                <span class="brand-tag">AI Assistant</span>
+            </div>
+
+            <div class="orb-mascot-wrap">
+                <div class="orb-mascot">
+                    <div class="orb-glow"></div>
+                    <div class="orb-face">
+                        <div class="orb-eyes">
+                            <div class="orb-eye"></div>
+                            <div class="orb-eye"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="orb-tagline">Your Smart Coding<br><span>Companion</span></p>
+            </div>
+
+            <!-- Sidebar Tab Nav -->
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" data-tab="chat" id="tab-chat">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    Chat
+                </button>
+                <button class="sidebar-tab" data-tab="history" id="tab-history">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    History
+                </button>
+                <button class="sidebar-tab" data-tab="bookmarks" id="tab-bookmarks">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                    Saved
+                </button>
+            </div>
+
+            <!-- Tab Panel: Chat -->
+            <div class="sidebar-panel" id="panel-chat">
+                <div class="model-selector-section">
+                    <p class="section-label">Mode</p>
+                    <div class="model-pills" id="model-pills">
+                        <button class="model-pill" data-model="sarvam-30b" id="pill-reasoning">
+                            <span class="pill-icon">🧠</span>
+                            <div class="pill-text">
+                                <span class="pill-name">Reasoning</span>
+                                <span class="pill-desc">Deep · Thoughtful</span>
+                            </div>
+                        </button>
+                        <button class="model-pill active" data-model="sarvam-m" id="pill-fast">
+                            <span class="pill-icon">⚡</span>
+                            <div class="pill-text">
+                                <span class="pill-name">Fast</span>
+                                <span class="pill-desc">Quick · Instant</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="quick-prompts-section">
+                    <p class="section-label">Try asking</p>
+                    <div class="quick-chips">
+                        <button class="quick-chip" data-prompt="Explain binary search with example">Binary Search</button>
+                        <button class="quick-chip" data-prompt="What is dynamic programming?">Dynamic Programming</button>
+                        <button class="quick-chip" data-prompt="Explain time complexity">Time Complexity</button>
+                        <button class="quick-chip" data-prompt="How does recursion work?">Recursion</button>
+                        <button class="quick-chip" data-prompt="Difference between stack and queue">Stack vs Queue</button>
+                        <button class="quick-chip" data-prompt="Explain object oriented programming">OOP Concepts</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Panel: History -->
+            <div class="sidebar-panel hidden" id="panel-history">
+                <div class="panel-inner">
+                    <p class="section-label">Recent Chats</p>
+                    <div id="history-list" class="history-list">
+                        <div class="empty-state">
+                            <span>🗨️</span>
+                            <p>No past chats yet.<br>Start a conversation!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Panel: Bookmarks -->
+            <div class="sidebar-panel hidden" id="panel-bookmarks">
+                <div class="panel-inner">
+                    <p class="section-label">Saved Resources</p>
+                    <div id="bookmarks-list" class="bookmarks-list">
+                        <div class="empty-state">
+                            <span>🔖</span>
+                            <p>No bookmarks yet.<br>Save GfG links here!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="powered-by">
+                    <span>Powered by</span>
+                    <strong>Sarvam AI</strong>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ══════════════════════════
+             MAIN CHAT
+             ══════════════════════════ -->
+        <main class="chat-main">
+
+            <!-- ── DESKTOP TOPBAR ── -->
+            <header class="chat-topbar">
+                <div class="topbar-left">
+                    <!-- Mobile-only brand with hamburger -->
+                    <div class="mobile-brand">
+                        <button class="menu-toggle" id="menu-toggle" aria-label="Toggle Menu">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        </button>
+                        <span class="brand-gfg">GfG</span>
+                        <span class="brand-dot">·</span>
+                        <span class="brand-yogi">Yogi</span>
+                    </div>
+                    <div class="topbar-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Yogi is online</span>
+                    </div>
+                </div>
+                <div class="topbar-center">
+                    <span class="topbar-model-badge fast-mode" id="topbar-model-badge">⚡ Fast Mode</span>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="clear-chat-btn" title="Clear chat">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ── MOBILE-ONLY CONTROL BAR ── -->
+            <div class="mobile-controls" id="mobile-controls">
+                <!-- Model switcher pills (compact) -->
+                <div class="mobile-model-pills">
+                    <button class="mobile-pill" data-model="sarvam-30b" id="mobile-pill-reasoning">
+                        <span>🧠</span> Reasoning
+                    </button>
+                    <button class="mobile-pill active" data-model="sarvam-m" id="mobile-pill-fast">
+                        <span>⚡</span> Fast
+                    </button>
+                </div>
+                <!-- Horizontal scrolling chips -->
+                <div class="mobile-chips-scroll">
+                    <button class="mobile-chip" data-prompt="Explain binary search with example">Binary Search</button>
+                    <button class="mobile-chip" data-prompt="What is dynamic programming?">Dynamic Programming</button>
+                    <button class="mobile-chip" data-prompt="Explain time complexity">Time Complexity</button>
+                    <button class="mobile-chip" data-prompt="How does recursion work?">Recursion</button>
+                    <button class="mobile-chip" data-prompt="Difference between stack and queue">Stack vs Queue</button>
+                    <button class="mobile-chip" data-prompt="Explain object oriented programming">OOP Concepts</button>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <section id="chat-messages" class="chat-messages">
+                <div class="welcome-card">
+                    <div class="welcome-orb-mini">🧘‍♂️</div>
+                    <h2>Hello, Seeker!</h2>
+                    <p>I'm Yogi Bot, your unofficial GeeksforGeeks AI companion. Ask me anything about <strong>DSA</strong>, <strong>coding</strong>, <strong>system design</strong>, or any tech concept.</p>
+                    <div class="welcome-chips">
+                        <span class="w-chip">💡 Explains concepts</span>
+                        <span class="w-chip">🔗 Links GfG resources</span>
+                        <span class="w-chip">⚡ Two modes</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Input -->
+            <footer class="chat-input-area">
+                <form id="chat-form" autocomplete="off">
+                    <div class="input-wrapper">
+                        <input type="text" id="user-input" placeholder="Ask about DSA, Python, algorithms…" autocomplete="off">
+                        <button type="submit" id="send-btn" aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="input-hint">Unofficial · Not affiliated with GeeksforGeeks · Powered by Sarvam AI</p>
+                </form>
+            </footer>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
