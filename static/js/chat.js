@@ -1,3 +1,11 @@
+import { addBookmark, removeBookmark, renderBookmarks } from './bookmarks.js';
+import { generateId, saveHistory, getChatHistory, clearHistory, renderHistoryList } from './history.js';
+import { createBotBubble, addUserMessage } from './ui.js';
+
+// Expose bookmark functions globally for inline HTML event handlers
+window.addBookmark = (title, link) => addBookmark(title, link, () => renderBookmarks('bookmarks-list'));
+window.removeBookmark = (link) => removeBookmark(link, () => renderBookmarks('bookmarks-list'));
+
 document.addEventListener('DOMContentLoaded', () => {
     const chatForm       = document.getElementById('chat-form');
     const userInput      = document.getElementById('user-input');
@@ -8,10 +16,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn       = document.getElementById('clear-chat-btn');
     const quickChips     = document.querySelectorAll('.quick-chip');
     const mobileChips    = document.querySelectorAll('.mobile-chip');
+    
+    const modelDropdown    = document.getElementById('model-dropdown');
+    const modelDropBtn     = document.getElementById('model-selected-display');
+    const modelOptions     = document.querySelectorAll('.model-option');
+    const modelSelectedIcon = document.querySelector('.model-selected-icon');
 
     const menuToggle     = document.getElementById('menu-toggle');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
     const appShell       = document.querySelector('.app-shell');
+    const newChatSidebar = document.getElementById('new-chat-sidebar');
+    const newChatTopbar  = document.getElementById('new-chat-topbar');
 
     let selectedModel = 'sarvam-m';   // default: Fast
     let isStreaming   = false;
@@ -21,58 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const pathMatches = window.location.pathname.match(/\/c\/([a-zA-Z0-9_-]+)/);
     if (pathMatches && pathMatches[1]) {
         chatId = pathMatches[1];
-    }
-
-    // Bookmarking logic
-    window.addBookmark = function(title, link) {
-        let bookmarks = JSON.parse(localStorage.getItem('yogi_bookmarks') || '[]');
-        if (!bookmarks.find(b => b.link === link)) {
-            bookmarks.push({title, link});
-            localStorage.setItem('yogi_bookmarks', JSON.stringify(bookmarks));
-        }
-        renderBookmarks();
-    };
-
-    window.removeBookmark = function(link) {
-        let bookmarks = JSON.parse(localStorage.getItem('yogi_bookmarks') || '[]');
-        bookmarks = bookmarks.filter(b => b.link !== link);
-        localStorage.setItem('yogi_bookmarks', JSON.stringify(bookmarks));
-        renderBookmarks();
-    };
-
-    function renderBookmarks() {
-        const list = document.getElementById('bookmarks-list');
-        if (!list) return;
-        const bookmarks = JSON.parse(localStorage.getItem('yogi_bookmarks') || '[]');
-        if (bookmarks.length === 0) {
-            list.innerHTML = `<div class="empty-state"><span>🔖</span><p>No bookmarks yet.<br>Save GfG links here!</p></div>`;
-            return;
-        }
-        list.innerHTML = bookmarks.map(b => `
-            <div class="bookmark-item">
-                <a href="${b.link}" target="_blank">${b.title}</a>
-                <button class="bookmark-remove" onclick="window.removeBookmark('${b.link.replace(/'/g, "\\'")}')">✕</button>
-            </div>`).join('');
-    }
-
-    function renderHistoryList() {
-        const list = document.getElementById('history-list');
-        if (!list) return;
-        const chats = JSON.parse(localStorage.getItem('yogi_chats') || '{}');
-        const ids = Object.keys(chats);
-        if (ids.length === 0) {
-            list.innerHTML = `<div class="empty-state"><span>🗨️</span><p>No past chats yet.<br>Start a conversation!</p></div>`;
-            return;
-        }
-        list.innerHTML = ids.reverse().map(id => {
-            const first = chats[id].messages.find(m => m.role === 'user');
-            const preview = first ? first.content.slice(0, 50) : 'Chat ' + id.slice(0,6);
-            const isCurrent = id === chatId;
-            return `<a href="/c/${id}" class="history-item${isCurrent ? ' active' : ''}">
-                <span class="history-item-icon">${isCurrent ? '💬' : '🗨️'}</span>
-                <span class="history-item-text">${preview}</span>
-            </a>`;
-        }).join('');
     }
 
     // Sidebar tab switching
@@ -85,41 +48,23 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.add('hidden'));
             const panel = document.getElementById('panel-' + target);
             if (panel) panel.classList.remove('hidden');
-            if (target === 'history') renderHistoryList();
-            if (target === 'bookmarks') renderBookmarks();
+            if (target === 'history') renderHistoryList('history-list', chatId);
+            if (target === 'bookmarks') renderBookmarks('bookmarks-list');
         });
     });
 
-    function generateId() {
-        return Math.random().toString(36).substring(2, 15);
-    }
-
-    function saveHistory(role, content) {
-        if (window.isWidget) return;
-        if (!chatId) {
-            chatId = generateId();
-            window.history.pushState({}, '', '/c/' + chatId);
-        }
-        let history = JSON.parse(localStorage.getItem('yogi_chats') || '{}');
-        if (!history[chatId]) history[chatId] = { messages: [] };
-        history[chatId].messages.push({ role, content });
-        localStorage.setItem('yogi_chats', JSON.stringify(history));
-    }
-
-    function loadHistory() {
+    function loadHistoryUI() {
         if (window.isWidget || !chatId) return;
-        let history = JSON.parse(localStorage.getItem('yogi_chats') || '{}');
-        let chat = history[chatId];
+        const chat = getChatHistory(chatId);
         if (chat && chat.messages) {
             const welcomeCard = chatMessages.querySelector('.welcome-card');
             if (welcomeCard) welcomeCard.remove();
             
             chat.messages.forEach(msg => {
                 if (msg.role === 'user') {
-                    addUserMessage(msg.content, false);
+                    addUserMessage(chatMessages, msg.content);
                 } else {
-                    // Bot message rendering (simplified for loaded history)
-                    const botId = createBotBubble();
+                    const botId = createBotBubble(chatMessages);
                     const botEl = document.getElementById(botId);
                     botEl.querySelector('.typing-indicator').remove();
                     botEl.querySelector('.answer-content').innerHTML = msg.content;
@@ -132,9 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function setModel(model) {
         selectedModel = model;
         const isfast = model === 'sarvam-m';
-        // Sync both sets of pills
-        modelPills.forEach(p => p.classList.toggle('active', p.dataset.model === model));
-        mobilePills.forEach(p => p.classList.toggle('active', p.dataset.model === model));
+        
+        // Update dropdown UI
+        modelOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.model === model));
+        if (modelSelectedIcon) {
+            modelSelectedIcon.textContent = isfast ? '⚡' : '🧠';
+        }
+
         if (topbarBadge) {
             topbarBadge.textContent = isfast ? '⚡ Fast Mode' : '🧠 Reasoning Mode';
             topbarBadge.classList.toggle('fast-mode', isfast);
@@ -143,23 +92,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Initialize UI state
+    // Initial load
     setModel(selectedModel);
-    loadHistory();
+    loadHistoryUI();
 
-    /* ── Desktop model pills ── */
-    modelPills.forEach(pill => {
-        pill.addEventListener('click', () => {
-            if (!isStreaming) setModel(pill.dataset.model);
+    /* ── Model Dropdown Logic ── */
+    if (modelDropBtn && modelDropdown) {
+        modelDropBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            modelDropdown.classList.toggle('active');
         });
-    });
 
-    /* ── Mobile model pills ── */
-    mobilePills.forEach(pill => {
-        pill.addEventListener('click', () => {
-            if (!isStreaming) setModel(pill.dataset.model);
+        modelOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                if (!isStreaming) {
+                    setModel(opt.dataset.model);
+                    modelDropdown.classList.remove('active');
+                }
+            });
         });
-    });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            modelDropdown.classList.remove('active');
+        });
+    }
 
     /* ── Desktop quick chips ── */
     quickChips.forEach(chip => {
@@ -183,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Close sidebar on mobile when an action item is clicked (but not when switching tabs)
+    // Close sidebar on mobile when an action item is clicked
     document.querySelectorAll('.history-item, .quick-chip').forEach(el => {
         el.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -203,20 +160,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /* ── Clear chat ── */
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            if (isStreaming) return;
-            chatMessages.innerHTML = '';
-            if (chatId) {
-                let history = JSON.parse(localStorage.getItem('yogi_chats') || '{}');
-                delete history[chatId];
-                localStorage.setItem('yogi_chats', JSON.stringify(history));
-                chatId = null;
-                window.history.pushState({}, '', '/');
-            }
-        });
-    }
+    /* ── Reset / New Chat Logic ── */
+    const resetChat = () => {
+        if (isStreaming) return;
+        
+        // Clear UI
+        chatMessages.innerHTML = `
+            <div class="welcome-card">
+                <div class="welcome-orb-mini">🧘‍♂️</div>
+                <h2>Hello, Seeker!</h2>
+                <p>I'm Yogi Bot, your unofficial GeeksforGeeks AI companion. Ask me anything about <strong>DSA</strong>, <strong>coding</strong>, <strong>system design</strong>, or any tech concept.</p>
+                <div class="welcome-chips">
+                    <span class="w-chip">💡 Explains concepts</span>
+                    <span class="w-chip">🔗 Links GfG resources</span>
+                    <span class="w-chip">⚡ Two modes</span>
+                </div>
+            </div>
+        `;
+        
+        // Reset State
+        chatId = null;
+        window.history.pushState({}, '', '/');
+        
+        // Close sidebar on mobile if open
+        if (window.innerWidth <= 768) {
+            appShell.classList.remove('sidebar-open');
+            sidebarOverlay.classList.remove('active');
+        }
+    };
+
+    if (newChatSidebar) newChatSidebar.addEventListener('click', resetChat);
+    if (newChatTopbar) newChatTopbar.addEventListener('click', resetChat);
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        if (isStreaming) return;
+        if (chatId) clearHistory(chatId);
+        resetChat();
+    });
 
     /* ── Submit ── */
     if (chatForm) {
@@ -232,10 +211,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const welcomeCard = chatMessages.querySelector('.welcome-card');
             if (welcomeCard) welcomeCard.remove();
 
-            addUserMessage(message, true);
+            if (!chatId) {
+                chatId = generateId();
+                window.history.pushState({}, '', '/c/' + chatId);
+            }
 
-            const botId = createBotBubble();
+            addUserMessage(chatMessages, message);
+            saveHistory(chatId, 'user', message);
+
+            const botId = createBotBubble(chatMessages);
             const botEl = document.getElementById(botId);
+            
+            // Initial scroll to user message
+            botEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
             const thinkingSection  = botEl.querySelector('.thinking-section');
             const thinkingContent  = botEl.querySelector('.thinking-content');
             const thinkingToggle   = botEl.querySelector('.thinking-toggle');
@@ -245,13 +234,23 @@ document.addEventListener('DOMContentLoaded', () => {
             let thinkingText = '';
             let answerText   = '';
             let answerStarted = false;
-            let fullHtmlSaved = ''; // To save final formatted HTML
 
             try {
+                // Prepare history for the API call
+                const chatHistory = getChatHistory(chatId);
+                const apiHistory = chatHistory ? chatHistory.messages.map(m => ({
+                    role: m.role === 'bot' ? 'assistant' : 'user',
+                    content: m.raw || m.content
+                })) : [];
+
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, model: selectedModel }),
+                    body: JSON.stringify({ 
+                        message, 
+                        model: selectedModel,
+                        history: apiHistory 
+                    }),
                 });
 
                 if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -292,8 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                                 answerText += data.content;
                                 answerEl.innerHTML = marked.parse(answerText);
-                                chatMessages.scrollTop = chatMessages.scrollHeight;
-
+                                
+                                // Smart scroll: follow content if at bottom
+                                const isAtBottom = (chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight) < 100;
+                                if (isAtBottom) {
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
                             } else if (data.type === 'references' && data.links) {
                                 const typingEl = botEl.querySelector('.typing-indicator');
                                 if (typingEl) typingEl.remove();
@@ -348,109 +351,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                // Save bot response HTML
-                saveHistory('bot', botEl.querySelector('.bubble').innerHTML);
+                saveHistory(chatId, 'bot', botEl.querySelector('.bubble').innerHTML, answerText);
 
             } catch (err) {
                 const typingEl = botEl.querySelector('.typing-indicator');
                 if (typingEl) typingEl.remove();
                 answerEl.innerHTML = `<span class="error-text">⚠️ Connection lost: ${err.message}</span>`;
-                saveHistory('bot', answerEl.innerHTML);
+                saveHistory(chatId, 'bot', answerEl.innerHTML);
             } finally {
                 isStreaming = false;
                 document.getElementById('send-btn').disabled = false;
             }
         });
     }
-
-    function createBotBubble() {
-        const id = 'bot-' + Date.now();
-        const msgDiv = document.createElement('div');
-        msgDiv.id = id;
-        msgDiv.className = 'message bot-message';
-
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        avatar.textContent = 'Y';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-
-        const thinkingSection = document.createElement('div');
-        thinkingSection.className = 'thinking-section';
-        thinkingSection.style.display = 'none';
-
-        const thinkingToggle = document.createElement('button');
-        thinkingToggle.className = 'thinking-toggle';
-        thinkingToggle.innerHTML = `
-            <span style="font-size:0.95rem">🧠</span>
-            <span class="thinking-label">Reasoning</span>
-            <span class="toggle-arrow">▲</span>`;
-        thinkingToggle.addEventListener('click', () => {
-            const body = thinkingSection.querySelector('.thinking-body');
-            const hidden = body.style.display === 'none';
-            body.style.display = hidden ? 'block' : 'none';
-            thinkingToggle.classList.toggle('collapsed', !hidden);
-        });
-
-        const thinkingBody = document.createElement('div');
-        thinkingBody.className = 'thinking-body';
-
-        const thinkingContent = document.createElement('div');
-        thinkingContent.className = 'thinking-content';
-
-        thinkingBody.appendChild(thinkingContent);
-        thinkingSection.appendChild(thinkingToggle);
-        thinkingSection.appendChild(thinkingBody);
-
-        const bubbleContent = document.createElement('div');
-        bubbleContent.className = 'bubble-content';
-
-        const typingIndicator = document.createElement('div');
-        typingIndicator.className = 'typing-indicator';
-        typingIndicator.innerHTML = `
-            <div class="typing-dots">
-                <span></span><span></span><span></span>
-            </div>
-            <span>Yogi is thinking…</span>`;
-
-        const answerContent = document.createElement('div');
-        answerContent.className = 'answer-content';
-
-        bubbleContent.appendChild(typingIndicator);
-        bubbleContent.appendChild(answerContent);
-
-        bubble.appendChild(thinkingSection);
-        bubble.appendChild(bubbleContent);
-
-        msgDiv.appendChild(avatar);
-        msgDiv.appendChild(bubble);
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        return id;
-    }
-
-    function addUserMessage(text, save = true) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message user-message';
-
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        avatar.textContent = 'U';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-
-        const content = document.createElement('div');
-        content.className = 'bubble-content';
-        content.textContent = text;
-
-        bubble.appendChild(content);
-        msgDiv.appendChild(avatar);
-        msgDiv.appendChild(bubble);
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        if (save) saveHistory('user', text);
-    }
 });
+
